@@ -28,9 +28,11 @@ def main(argv):
             timestamp = datetime.strptime(translation['timestamp'], '%Y-%m-%d %H:%M:%S.%f')
             translations.append(Translation(timestamp, translation['duration']))
 
+    # determine the date/time range by taking the first and last timestamps
     first_timestamp = translations[0].timestamp
     last_timestamp = translations[-1].timestamp
 
+    # strip the seconds portion of the timestamps at the edges
     first_minute = datetime(
         first_timestamp.year,
         first_timestamp.month,
@@ -44,15 +46,19 @@ def main(argv):
         last_timestamp.hour,
         last_timestamp.minute)
 
+    # add a minute to the final timestamp to account for the last translation entry
     last_minute += timedelta(minutes=1)
     window_end = first_minute
     encoder = json.JSONEncoder()
 
     while window_end <= last_minute:
+        # subtract the window size from the current minute to get the range of translations to be considered
         window_start = window_end - timedelta(minutes=args.window_size)
+        # filter translations within the window range, generating them into a list, so they are countable with len()
         window_durations = list(
             (t.duration for t in translations if window_start <= t.timestamp < window_end)
         )
+        # reduce the translation list into the sum of their durations
         duration_sum = functools.reduce(lambda a, b: a + b, window_durations, 0)
         window_average = (duration_sum / len(window_durations)) if len(window_durations) > 0 else 0
         result = {'date': window_end.strftime('%Y-%m-%d %H:%M:%S'), 'average_delivery_time': window_average}
